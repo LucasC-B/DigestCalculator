@@ -14,6 +14,11 @@ import org.xml.sax.*;
  */
 public class DigestCalculator {
 
+
+    private static final String ERROR_MESSAGE_ARGS = "Uso: DigestCalculator <Tipo_Digest> <Caminho_da_Pasta> <Caminho_ArqListaDigest>";
+
+    private static final String MESSAGE_DIGEST_ALGORITHMS_TIP = "Tipos de digest suportados: MD5, SHA1, SHA256, SHA512";
+
     /**
      * Método principal que inicia a execução do programa.
      *
@@ -21,8 +26,8 @@ public class DigestCalculator {
      */
     public static void main(String[] args) {
         if (args.length != 3) {
-            System.out.println("Uso: DigestCalculator <Tipo_Digest> <Caminho_da_Pasta> <Caminho_ArqListaDigest>");
-            System.out.println("Tipos de digest suportados: MD5, SHA1, SHA256, SHA512");
+            System.out.println(ERROR_MESSAGE_ARGS);
+            System.out.println(MESSAGE_DIGEST_ALGORITHMS_TIP);
             System.exit(1);
         }
 
