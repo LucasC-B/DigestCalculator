@@ -38,7 +38,6 @@ public class DigestCalculator {
 
             Document digestList = loadDigestList(digestListPath);
             Map<String, Map<String, String>> digestsListMap = buildDigestsListMap(digestList);
-            Map<String, Set<String>> digestFilesMap = buildDigestFilesMap(digestList);
 
             File folder = new File(folderPath);
             File[] files = folder.listFiles();
@@ -46,7 +45,7 @@ public class DigestCalculator {
             if (files != null) {
                 for (File file : files) {
                     if (file.isFile()) {
-                        processFile(file, digestType, digestList, digestsListMap, digestFilesMap);
+                        processFile(file, digestType, digestList, digestsListMap);
                     }
                 }
             }
@@ -102,57 +101,25 @@ public class DigestCalculator {
     }
 
     /**
-     * Constrói um mapa de arquivos por digest a partir do documento XML.
-     *
-     * @param doc Documento XML contendo os digests conhecidos.
-     * @return Mapa onde a chave é o valor do digest e o valor é um conjunto de nomes de arquivos.
-     */
-    private static Map<String, Set<String>> buildDigestFilesMap(Document doc) {
-        Map<String, Set<String>> map = new HashMap<>();
-        NodeList fileEntries = doc.getElementsByTagName("FILE_ENTRY");
-
-        for (int i = 0; i < fileEntries.getLength(); i++) {
-            Element fileEntry = (Element) fileEntries.item(i);
-            String fileName = fileEntry.getElementsByTagName("FILE_NAME").item(0).getTextContent();
-
-            NodeList digestEntries = fileEntry.getElementsByTagName("DIGEST_ENTRY");
-
-            for (int j = 0; j < digestEntries.getLength(); j++) {
-                Element digestEntry = (Element) digestEntries.item(j);
-                String digestHex = digestEntry.getElementsByTagName("DIGEST_HEX").item(0).getTextContent().trim();
-
-                if (!map.containsKey(digestHex)) {
-                    map.put(digestHex, new HashSet<>());
-                }
-                map.get(digestHex).add(fileName);
-            }
-        }
-
-        return map;
-    }
-
-    /**
      * Processa um arquivo individual, calculando seu digest e verificando seu status.
      *
      * @param file Arquivo a ser processado.
      * @param digestType Tipo de digest a ser calculado.
      * @param digestList Documento XML com a lista de digests conhecidos.
      * @param digestsListMap Mapa de digests por arquivo.
-     * @param digestFilesMap Mapa de arquivos por digest.
      * @throws Exception Se ocorrer erro durante o processamento.
      */
     private static void processFile(File file, String digestType, Document digestList,
-                                    Map<String, Map<String, String>> digestsListMap,
-                                    Map<String, Set<String>> digestFilesMap) throws Exception {
+                                    Map<String, Map<String, String>> digestsListMap) throws Exception {
         String fileName = file.getName();
         String calculatedDigest = calculateFileDigest(file, digestType);
 
-        String status = determineStatus(fileName, digestType, calculatedDigest, digestsListMap, digestFilesMap);
+        String status = determineStatus(fileName, digestType, calculatedDigest, digestsListMap);
 
         System.out.println(fileName + " " + digestType + " " + calculatedDigest + " " + status);
 
         if (status.equals("NOT FOUND")) {
-            addDigestToList(fileName, digestType, calculatedDigest, digestList, digestsListMap, digestFilesMap);
+            addDigestToList(fileName, digestType, calculatedDigest, digestList, digestsListMap);
         }
     }
 
@@ -163,37 +130,44 @@ public class DigestCalculator {
      * @param digestType Tipo de digest sendo verificado.
      * @param calculatedDigest Valor do digest calculado.
      * @param digestsListMap Mapa de digests por arquivo.
-     * @param digestFilesMap Mapa de arquivos por digest.
      * @return String representando o status: "OK", "NOT OK", "NOT FOUND" ou "COLISION".
      */
     private static String determineStatus(String fileName, String digestType, String calculatedDigest,
-                                          Map<String, Map<String, String>> digestsListMap,
-                                          Map<String, Set<String>> digestFilesMap) {
-        // Verificar colisão primeiro
-        if (digestFilesMap.containsKey(calculatedDigest)) {
-            Set<String> filesWithSameDigest = digestFilesMap.get(calculatedDigest);
-            if (!filesWithSameDigest.contains(fileName)) {
-                return "COLISION";
-            }
+                                          Map<String, Map<String, String>> digestsListMap) {
+        // Verificar colisão
+        if (hasCollision(fileName, calculatedDigest, digestsListMap)) {
+            return "COLISION";
         }
 
         // Verificar se o arquivo está na lista
         if (digestsListMap.containsKey(fileName)) {
             Map<String, String> fileDigests = digestsListMap.get(fileName);
 
-            // Verificar se tem digest do tipo solicitado
             if (fileDigests.containsKey(digestType)) {
-                if (fileDigests.get(digestType).equals(calculatedDigest)) {
-                    return "OK";
-                } else {
-                    return "NOT OK";
-                }
-            } else {
-                return "NOT FOUND";
+                return fileDigests.get(digestType).equals(calculatedDigest) ? "OK" : "NOT OK";
             }
         }
 
         return "NOT FOUND";
+    }
+
+    /**
+     * Verifica se há colisão de digest com outros arquivos.
+     *
+     * @param fileName Nome do arquivo sendo verificado.
+     * @param digest Digest sendo verificado.
+     * @param digestsListMap Mapa de digests por arquivo.
+     */
+    private static boolean hasCollision(String fileName, String digest,
+                                        Map<String, Map<String, String>> digestsListMap) {
+        for (Map.Entry<String, Map<String, String>> entry : digestsListMap.entrySet()) {
+            if (entry.getKey().equals(fileName)) continue;
+
+            if (entry.getValue().containsValue(digest)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -274,11 +248,9 @@ public class DigestCalculator {
      * @param digestHex Valor hexadecimal do digest.
      * @param doc Documento XML onde será adicionado.
      * @param digestsListMap Mapa de digests por arquivo a ser atualizado.
-     * @param digestFilesMap Mapa de arquivos por digest a ser atualizado.
      */
     private static void addDigestToList(String fileName, String digestType, String digestHex,
-                                        Document doc, Map<String, Map<String, String>> digestsListMap,
-                                        Map<String, Set<String>> digestFilesMap) {
+                                        Document doc, Map<String, Map<String, String>> digestsListMap) {
         Element root = doc.getDocumentElement();
         Element fileEntry = findOrCreateFileEntry(doc, root, fileName);
 
@@ -305,16 +277,11 @@ public class DigestCalculator {
             digestEntry.appendChild(digestHexElement);
             fileEntry.appendChild(digestEntry);
 
-            // Atualizar os maps
+            // Atualizar o mapa
             if (!digestsListMap.containsKey(fileName)) {
                 digestsListMap.put(fileName, new HashMap<>());
             }
             digestsListMap.get(fileName).put(digestType, digestHex);
-
-            if (!digestFilesMap.containsKey(digestHex)) {
-                digestFilesMap.put(digestHex, new HashSet<>());
-            }
-            digestFilesMap.get(digestHex).add(fileName);
         }
     }
 
