@@ -9,6 +9,13 @@ import org.w3c.dom.*;
 import org.xml.sax.*;
 
 /**
+ *  INTEGRANTES DA DUPLA:
+ *  Lucas Caputo Bello - 1911432
+ *  Sérgio Bernardelli Netto - 1911466
+ */
+
+
+/**
  * Classe principal para cálculo e verificação de digests de arquivos.
  * Compara digests calculados com uma lista conhecida em formato XML.
  */
