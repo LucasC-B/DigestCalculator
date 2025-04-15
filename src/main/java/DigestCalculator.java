@@ -17,7 +17,12 @@ public class DigestCalculator {
 
     private static final String ERROR_MESSAGE_ARGS = "Uso: DigestCalculator <Tipo_Digest> <Caminho_da_Pasta> <Caminho_ArqListaDigest>";
 
+    private static final String ERROR_LOAD_XML = "Erro ao carregar o arquivo XML. Criando novo documento.";
+
     private static final String MESSAGE_DIGEST_ALGORITHMS_TIP = "Tipos de digest suportados: MD5, SHA1, SHA256, SHA512";
+
+    private static final String ERROR_DIGEST_TYPE = "Tipo de digest não suportado: ";
+
 
     /**
      * Método principal que inicia a execução do programa.
@@ -37,7 +42,7 @@ public class DigestCalculator {
 
         try {
             if (!isDigestSupported(digestType)) {
-                System.out.println("Tipo de digest não suportado: " + digestType);
+                System.out.println(ERROR_DIGEST_TYPE + digestType);
                 System.exit(1);
             }
 
@@ -135,13 +140,13 @@ public class DigestCalculator {
      * @param digestType Tipo de digest sendo verificado.
      * @param calculatedDigest Valor do digest calculado.
      * @param digestsListMap Mapa de digests por arquivo.
-     * @return String representando o status: "OK", "NOT OK", "NOT FOUND" ou "COLISION".
+     * @return String representando o status: "OK", "NOT OK", "NOT FOUND" ou "COLLISION".
      */
     private static String determineStatus(String fileName, String digestType, String calculatedDigest,
                                           Map<String, Map<String, String>> digestsListMap) {
         // Verificar colisão
         if (hasCollision(fileName, calculatedDigest, digestsListMap)) {
-            return "COLISION";
+            return "COLLISION";
         }
 
         // Verificar se o arquivo está na lista
@@ -237,7 +242,7 @@ public class DigestCalculator {
                 return doc;
             }
         } catch (SAXException | IOException e) {
-            System.err.println("Erro ao carregar o arquivo XML. Criando novo documento.");
+            System.err.println(ERROR_LOAD_XML);
             Document doc = builder.newDocument();
             Element root = doc.createElement("CATALOG");
             doc.appendChild(root);
